@@ -1,13 +1,42 @@
 [
   {
     "name": "week",
-    "title": "This week",
-    "subtitle": "Venue Functions for Claude Code: what needs attention, rendered by npm run view",
+    "title": "Function week",
+    "subtitle": "Booked times use each room timezone. Review tentative holds before confirming.",
     "sections": [
       {
-        "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
+        "title": "Diary",
+        "sql": "select event,session,room,status,guests,local_start,local_end,timezone from function_diary where ends_at>=now() and status in ('confirmed','tentative') order by starts_at"
+      },
+      {
+        "title": "Room clashes",
+        "sql": "select * from room_clashes"
+      },
+      {
+        "title": "Staff clashes",
+        "sql": "select * from staff_clashes"
+      }
+    ]
+  },
+  {
+    "name": "money",
+    "title": "Deposits and contribution",
+    "sections": [
+      {
+        "title": "Recorded event money",
+        "sql": "select name,status,currency,agreed_cents,received_cents,deposit_outstanding_cents,balance_cents,estimated_contribution_cents from event_money where status<>'cancelled'",
+        "note": "Amounts follow the event currency. Contribution subtracts recorded item costs only. It excludes labour and overhead unless entered as items. This is not a tax invoice or profit statement."
+      }
+    ]
+  },
+  {
+    "name": "kitchen",
+    "title": "Kitchen handover",
+    "sections": [
+      {
+        "title": "Menus and dietary review",
+        "sql": "select event,guests,numbers_confirmed,dietary_notes,dietary_reviewed,item,quantity,allergens,allergen_verified,service_at from kitchen_handover order by service_at",
+        "note": "A recorded check is evidence for review, never a guarantee that food is allergen free."
       }
     ]
   }

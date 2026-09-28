@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {getDb,REPO_ROOT} from './lib/db.mjs';
+import {migrate} from './migrate.mjs';
+import {seed} from './seed.mjs';
+import {run,reads} from './venue.mjs';
+import {parseCsv} from './lib/csv.mjs';
+import {table} from './lib/render.mjs';
+const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'venue-test-'));
+process.env.DATABASE_URL=process.env.TEST_DATABASE_URL||'';process.env.DATA_DIR=path.join(tmp,'db');process.env.OUTPUT_DIR=tmp;
+let db=await getDb(),checks=0;const call=(...args)=>run(db,args);
+const ok=(v,msg)=>{assert.ok(v,msg);checks++;};const eq=(a,b,msg)=>{assert.deepEqual(a,b,msg);checks++;};
+const fails=async(fn,re)=>{await assert.rejects(fn,re);checks++;};
+try{
+ if(db.mode==='postgres')eq((await db.query("select tablename from pg_tables where schemaname='public'")).length,0,'Disposable empty test database only');
+ await migrate(db);await seed(db);const audit=(await db.query('select count(*) n from audit'))[0].n;await seed(db);eq((await db.query('select count(*) n from audit'))[0].n,audit);eq((await migrate(db)).ran,[]);
+ for(const cmd of Object.keys(reads))ok(Array.isArray(await call(cmd)),cmd);
+ ok((await call('help'))[0].commands.includes('import function-tracker'));
+ eq((await call('record','events','arts dinner'))[0].name,'Arts Dinner');await fails(()=>call('record','staff','Jamie'),/Ambiguous.*\n/s);await fails(()=>call('record','events','absent'),/No match/);
+ const art=(await call('record','events','Arts Dinner'))[0];ok(art.children.items.length===1&&art.children.notes.length===1);
+ let money=(await call('margin-review')).find(r=>r.name==='Arts Dinner');eq(Number(money.item_cost_cents),297500);eq(Number(money.estimated_contribution_cents),552500);eq(Number(money.unmatched_agreed_cents),0);
+ eq(Number((await call('deposits-due')).find(r=>r.name==='Arts Dinner').deposit_outstanding_cents),150000);
+ eq((await call('room-clashes')).length,1,'Setup and clear buffers overlap even when event times touch');eq((await call('staff-clashes')).length,1);
+ const comp=await call('compliance');for(const rule of ['CAPACITY','ALLERGEN-INFO','DIETARY-HANDOVER','NZ-HOST','NZ-LICENCE-REVIEW','AU-LICENCE-REVIEW'])ok(comp.some(r=>r.rule===rule),rule);
+ await call('update','events','Arts Dinner',JSON.stringify({dietary_reviewed:true,food_water_confirmed:true,alternatives_confirmed:true,transport_confirmed:true,host_plan:'Verified venue plan',licence_evidence:'Licence reviewed by operator',duty_manager:'Sam Venue'}));
+ ok(!(await call('compliance')).some(r=>r.event==='Arts Dinner'&&['DIETARY-HANDOVER','NZ-HOST','NZ-LICENCE-REVIEW'].includes(r.rule)));
+ await call('update','items','Seasonal dinner',JSON.stringify({allergen_verified:true}));ok(!(await call('compliance')).some(r=>r.event==='Arts Dinner'&&r.rule==='ALLERGEN-INFO'));
+ await call('update','sessions','Seminar',JSON.stringify({setup_minutes:0,clear_minutes:0}));eq((await call('room-clashes')).length,1,'Dinner setup still overlaps seminar');
+ await call('update','sessions','Dinner service',JSON.stringify({setup_minutes:0}));eq((await call('room-clashes')).length,0,'Half-open adjacent intervals do not clash');
+ await call('update','events','Kauri Seminar',JSON.stringify({status:'cancelled'}));eq((await call('staff-clashes')).length,0);ok(!(await call('attention')).some(r=>r.event==='Kauri Seminar'));
+ await call('update','events','Kauri Seminar',JSON.stringify({status:'tentative'}));
+ await fails(()=>call('update','events','Arts Dinner',JSON.stringify({currency:'AUD'})),/Cannot change currency/);
+ await fails(()=>call('update','receipts','BANK-ARTS',JSON.stringify({amount_cents:1})),/append-only/);
+ await fails(()=>call('add','events',JSON.stringify({name:'Bad',customer_id:'Harbour',guests:-1,currency:'NZD'})),/whole nonnegative/);
+ await fails(()=>call('update','events','Arts Dinner',JSON.stringify({deposit_cents:99999999})),/check constraint/);
+ await fails(()=>call('update','events','Arts Dinner',JSON.stringify({customer_id:'Kauri'})),/Cannot change parent/);
+ await fails(()=>call('update','events','Arts Dinner',JSON.stringify({numbers_confirmed:'false'})),/true or false/);
+ await fails(()=>call('update','events','Arts Dinner',JSON.stringify({deposit_due:'2026-02-30'})),/YYYY-MM-DD/);
+ await fails(()=>call('update','events','Arts Dinner',JSON.stringify({last_contact_at:'2026-11-01 12:00'})),/timezone/);
+ await fails(()=>call('add','rooms',JSON.stringify({name:'Bad timezone',capacity:5,country:'NZ',timezone:'Moon/Base'})),/Unknown timezone/);
+ await fails(()=>call('update','sessions','Dinner service',JSON.stringify({ends_at:'2020-01-01T00:00:00Z'})),/check constraint/);
+ await fails(()=>call('add','customers',JSON.stringify({name:'Bad field',password:'x'})),/Unknown field/);
+ const before=(await call('record','events','Summer Enquiry'))[0].last_contact_at;await call('log','Summer Enquiry','Client called to confirm next steps');ok(new Date((await call('record','events','Summer Enquiry'))[0].last_contact_at)>new Date(before));
+ await call('add','receipts',JSON.stringify({name:'BANK-ARTS-002',event_id:'Arts Dinner',amount_cents:200000,received_at:new Date().toISOString()}));ok(!(await call('deposits-due')).some(r=>r.name==='Arts Dinner'));
+ eq(Number((await call('balances-due')).find(r=>r.name==='Arts Dinner').balance_cents),600000);eq(Number((await call('margin-review')).find(r=>r.name==='Arts Dinner').item_cost_cents),297500,'More receipts must not multiply item costs');
+ await call('add','items',JSON.stringify({name:'Projector',event_id:'Arts Dinner',kind:'equipment',quantity:2,unit_cents:10000,cost_cents:5000}));eq(Number((await call('margin-review')).find(r=>r.name==='Arts Dinner').estimated_contribution_cents),542500);
+ await call('add','customers',JSON.stringify({name:'New Harbour Client'}));ok((await call('weekly-review')).length>4);
+ const fixture=path.join(REPO_ROOT,'fixtures/function-tracker');const preview=await call('import','function-tracker',fixture,'--dry-run');ok(preview.every(r=>r.added===1&&r.dry_run));await fails(()=>call('record','events','Example Conference'),/No match/);
+ ok((await call('import','function-tracker',fixture)).every(r=>r.added===1));ok((await call('import','function-tracker',fixture)).every(r=>r.skipped===1));
+ const bad=path.join(tmp,'bad');fs.cpSync(fixture,bad,{recursive:true});fs.appendFileSync(path.join(bad,'customers.csv'),'C002,Rollback Client,rollback@example.invalid\n');fs.writeFileSync(path.join(bad,'events.csv'),fs.readFileSync(path.join(bad,'events.csv'),'utf8').replace('Example Conference','Changed Conference'));
+ await fails(()=>call('import','function-tracker',bad),/Changed source/);await fails(()=>call('record','customers','Rollback Client'),/No match/);
+ fs.writeFileSync(path.join(bad,'events.csv'),fs.readFileSync(path.join(fixture,'events.csv'),'utf8').replace('E001,','E002,').replace(',C001,',',MISSING,'));await fails(()=>call('import','function-tracker',bad),/Missing imported reference/);
+ fs.writeFileSync(path.join(bad,'events.csv'),'Surprise\nvalue\n');await fails(()=>call('import','function-tracker',bad),/Unmapped columns/);
+ eq(parseCsv('\uFEFFID,Note\r\n1,"a,b\nline ""two"""\r\n')[0].Note,'a,b\nline "two"');assert.throws(()=>parseCsv('a,A\n1,2'),/unique/);assert.throws(()=>parseCsv('a,b\n1'),/expected/);assert.throws(()=>parseCsv('a\n"x'),/unclosed/);checks+=3;
+ ok(table([{name:'<script>bad</script>'}]).includes('&lt;script&gt;'));
+ for(const cmd of ['draft-follow-up','draft-function']){const r=await call(cmd,'Arts Dinner');ok(fs.readFileSync(r[0].file,'utf8').includes('Internal draft'));}
+ const out=path.join(tmp,'export');eq((await call('export',out)).length,12);const exported=JSON.parse(fs.readFileSync(path.join(out,'all.json')));ok(exported.audit.length>0&&exported.import_rows.length===4);await fails(()=>call('export',out),/already exists/);
+ await db.close();db=null;
+ for(const script of ['view.mjs','docs.mjs']){const p=spawnSync(process.execPath,[path.join(REPO_ROOT,'scripts',script)],{env:process.env,encoding:'utf8'});eq(p.status,0,p.stderr);}
+ eq(fs.readdirSync(path.join(tmp,'views')).length,3);eq(fs.readdirSync(path.join(tmp,'docs-out')).length,3);ok(fs.readFileSync(path.join(tmp,'views','week.html'),'utf8').includes('Harbour Room'));
+ for(const [args,status]of [[['record','staff','Jamie','--json'],1],[['unknown'],1],[['diary','--json'],0]]){const p=spawnSync(process.execPath,[path.join(REPO_ROOT,'scripts/venue.mjs'),...args],{env:process.env,encoding:'utf8'});eq(p.status,status,p.stderr);if(!status)ok(Array.isArray(JSON.parse(p.stdout)));}
+ console.log(`PASS: ${checks} checks; every CLI route, room buffers, staffing, deposits, contributions, evidence checks, import rollback, exports, documents and process exits`);
+}finally{if(db)await db.close();fs.rmSync(tmp,{recursive:true,force:true});}

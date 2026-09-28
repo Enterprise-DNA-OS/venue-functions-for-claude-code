@@ -1,11 +1,84 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
+    "name": "run-sheet",
+    "title": "Function run sheet",
+    "for_each": "select id,name from events where status in ('tentative','confirmed') order by name",
     "file": "name",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      {
+        "title": "Booking",
+        "sql": "select e.name,c.name customer,e.status,e.guests,e.numbers_confirmed,e.final_numbers_due from events e join customers c on c.id=e.customer_id where e.id=$1"
+      },
+      {
+        "title": "Rooms and times",
+        "sql": "select session,room,local_start,local_end,timezone,guests,capacity from function_diary where event_id=$1 order by starts_at"
+      },
+      {
+        "title": "Menu and equipment",
+        "sql": "select name,kind,quantity,allergens,allergen_verified,service_at from items where event_id=$1 order by service_at nulls last,name"
+      },
+      {
+        "title": "Staff",
+        "sql": "select st.name,st.role,s.starts_at,s.ends_at from shifts s join staff st on st.id=s.staff_id where s.event_id=$1 order by starts_at"
+      },
+      {
+        "title": "Open actions",
+        "sql": "select name,owner,due_at from tasks where event_id=$1 and not done order by due_at"
+      },
+      {
+        "title": "Host responsibility",
+        "sql": "select alcohol,duty_manager,licence_evidence,host_plan,food_water_confirmed,alternatives_confirmed,transport_confirmed from events where id=$1"
+      }
+    ]
+  },
+  {
+    "name": "kitchen-sheet",
+    "title": "Kitchen sheet for review",
+    "for_each": "select id,name from events where status in ('tentative','confirmed') order by name",
+    "file": "name",
+    "sections": [
+      {
+        "title": "Booking",
+        "sql": "select e.name,c.name customer,e.status,e.guests,e.numbers_confirmed,e.final_numbers_due from events e join customers c on c.id=e.customer_id where e.id=$1"
+      },
+      {
+        "title": "Rooms and times",
+        "sql": "select session,room,local_start,local_end,timezone,guests,capacity from function_diary where event_id=$1 order by starts_at"
+      },
+      {
+        "title": "Kitchen review",
+        "sql": "select dietary_notes,dietary_reviewed from events where id=$1",
+        "note": "Confirm ingredients and cross-contact controls with the kitchen before service."
+      },
+      {
+        "title": "Menu and equipment",
+        "sql": "select name,kind,quantity,allergens,allergen_verified,service_at from items where event_id=$1 order by service_at nulls last,name"
+      }
+    ]
+  },
+  {
+    "name": "booking-summary",
+    "title": "Booking and deposit summary",
+    "for_each": "select id,name from events where status in ('tentative','confirmed') order by name",
+    "file": "name",
+    "sections": [
+      {
+        "title": "Booking",
+        "sql": "select e.name,c.name customer,e.status,e.guests,e.numbers_confirmed,e.final_numbers_due from events e join customers c on c.id=e.customer_id where e.id=$1"
+      },
+      {
+        "title": "Rooms and times",
+        "sql": "select session,room,local_start,local_end,timezone,guests,capacity from function_diary where event_id=$1 order by starts_at"
+      },
+      {
+        "title": "Recorded amounts",
+        "sql": "select currency,agreed_cents,deposit_due,deposit_cents,received_cents,deposit_outstanding_cents,balance_due,balance_cents from event_money where id=$1",
+        "note": "Review against the signed booking and accounting records. This document is not a tax invoice or payment request."
+      },
+      {
+        "title": "Receipt evidence",
+        "sql": "select name,amount_cents,received_at from receipts where event_id=$1 order by received_at"
+      }
     ]
   }
 ]

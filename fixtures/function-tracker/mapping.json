@@ -1,0 +1,44 @@
+{
+  "customers": {
+    "file": "customers.csv",
+    "columns": {
+      "Customer reference": "source_id",
+      "Customer name": "name",
+      "Email": "email"
+    }
+  },
+  "rooms": {
+    "file": "rooms.csv",
+    "columns": {
+      "Room reference": "source_id",
+      "Room name": "name",
+      "Capacity": "capacity",
+      "Timezone": "timezone",
+      "Country": "country"
+    }
+  },
+  "events": {
+    "file": "events.csv",
+    "columns": {
+      "Event reference": "source_id",
+      "Event name": "name",
+      "Customer reference": "customer_id",
+      "Status": "status",
+      "Guests": "guests",
+      "Currency": "currency",
+      "Agreed cents": "agreed_cents",
+      "Deposit cents": "deposit_cents"
+    }
+  },
+  "sessions": {
+    "file": "sessions.csv",
+    "columns": {
+      "Session reference": "source_id",
+      "Session name": "name",
+      "Event reference": "event_id",
+      "Room reference": "room_id",
+      "Start": "starts_at",
+      "End": "ends_at"
+    }
+  }
+}

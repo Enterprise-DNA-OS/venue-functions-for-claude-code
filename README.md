@@ -1,115 +1,100 @@
-<h1 align="center">Venue Functions for Claude Code</h1>
+# Venue Functions for Claude Code
 
-<p align="center">
-  <strong>The open-source function and event venue management system that is just a database and Claude Code.</strong>
-</p>
+A venue owner's working desk: enquiries, room bookings, menu items, deposits, kitchen handovers and staff shifts in a database you own. Built by Enterprise DNA. MIT licence.
 
-<p align="center">
-  Created by <a href="https://www.enterprisedna.co"><strong>Enterprise DNA</strong></a>. Free and open source. Works with Claude Code, Codex, OpenCode or Cursor.
-</p>
+| Do it yourself | We customise it | We run it for you |
+| --- | --- | --- |
+| Free source. Follow the quick start. | Your booking rules, fields, Function Tracker mapping, screens and connections. | Installed and operated through Omni by Enterprise DNA. One setup fee, then a retainer. |
 
-<!-- three-doors -->
-<table align="center">
-  <tr>
-    <td align="center"><strong>Do it yourself</strong><br/>Clone it, run it, own it. Free, MIT.<br/><a href="#quick-start">Quick start</a></td>
-    <td align="center"><strong>We customise it</strong><br/>Your fields, your rules, your Function Tracker data brought across.<br/><a href="https://enterprisedna.co/omni/book/?utm_source=github&utm_medium=readme&utm_campaign=function-tracker">Book a call</a></td>
-    <td align="center"><strong>We run it for you</strong><br/>Installed, connected and operated inside Omni. Setup fee, then a retainer.<br/><a href="https://enterprisedna.co/omni/instead-of/function-tracker?utm_source=github&utm_medium=readme&utm_campaign=function-tracker">How it works</a></td>
-  </tr>
-</table>
+[Talk to Sam](https://enterprisedna.co/omni/book/?offer=replace-software&utm_campaign=function-tracker&utm_medium=readme) · [Instead of Function Tracker](https://enterprisedna.co/omni/instead-of/function-tracker?utm_source=github&utm_medium=readme&utm_campaign=function-tracker)
 
-<p align="center">
-  <a href="#what-is-this">What is this</a> &bull;
-  <a href="#why-no-front-end">Why no front end</a> &bull;
-  <a href="#quick-start">Quick start</a> &bull;
-  <a href="#the-commands">Commands</a> &bull;
-  <a href="#instead-of-function-tracker">Instead of Function Tracker</a> &bull;
-  <a href="#want-it-installed-and-run-for-you">Installed for you</a> &bull;
-  <a href="#license">License</a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Node-20+-339933?style=flat-square" alt="Node 20+" />
-  <img src="https://img.shields.io/badge/PostgreSQL-any-336791?style=flat-square" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/PGlite-embedded-3ecf8e?style=flat-square" alt="PGlite" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT License" />
-</p>
-
----
-
-## What is this
-
-Venue Functions for Claude Code does the job you pay Function Tracker for, as a Postgres database and a set of agent commands. There is no web front end. You open the folder in [Claude Code](https://claude.com/claude-code) (or Codex, OpenCode, Cursor: see `AGENTS.md`) and ask for what you want in plain language. It runs the right query, and it can answer questions the Function Tracker dashboard cannot.
-
-<!-- TODO(author): the annual bill. One sentence: what a 10 to 50 person business typically pays Function Tracker per year, all in, with a source. -->
-
-Want the same thing with a web front end, or built on a different stack? That is a customisation, and it is exactly what Enterprise DNA does: [book a call](https://enterprisedna.co/omni/book/?utm_source=github&utm_medium=readme&utm_campaign=function-tracker).
-
-<!-- TODO(author): two or three sentences on what this specific product covers and who it is for. -->
-
-## Why no front end
-
-- The front end was only ever there because the database was hard to talk to. That is no longer true.
-- Your data sits in plain Postgres tables you own. Any tool can read them. No export, no lock-in.
-- No seats, no tiers, no add-ons. Read [docs/why-no-front-end.md](docs/why-no-front-end.md) for the honest trade-offs too.
+Works with Claude Code, Codex, OpenCode or Cursor. Read AGENTS.md and CLAUDE.md. This is an operator desk with printable reports, not an online booking service.
 
 ## Quick start
-
-Sixty seconds, no database install (an embedded Postgres runs inside Node):
 
 ```bash
 git clone https://github.com/Enterprise-DNA-OS/venue-functions-for-claude-code.git
 cd venue-functions-for-claude-code
 npm install
 npm run demo
+npm run venue -- weekly-review
+npm run view
+npm run docs
 ```
 
-Then open the folder in Claude Code and type a slash command. <!-- TODO(author): name the first command to try. -->
+Node 20 or newer. Embedded PGlite needs no database installation. Set DATABASE_URL for Postgres using the same migrations. DATA_DIR selects the local database folder. The fictional NZ and AU demo includes an overdue deposit, a room clash involving setup time, a staff clash, an over-capacity dinner and unverified dietary information. Seed is idempotent and never overwrites edits. For real records start with an empty database, run npm run migrate and do not seed.
 
-### Use it with your own Postgres or Supabase
+Source is free. Agent subscriptions, hosting and ongoing support have separate costs. Function Tracker's [own pricing FAQ](https://support.functiontracker.com/article/137-how-much-is-function-tracker), checked 28 September 2026, describes room-based billing without per-user or per-event charges. Its current pricing page blocked automated access in this run, so no subscription figure is presented here. This build is a choice about ownership and venue-specific workflows, not a verified savings claim.
 
-Copy `.env.example` to `.env`, set `DATABASE_URL`, then `npm run migrate`. Same commands, shared data, no per-seat fee.
+## The function coordinator's week
 
-## The commands
+- `/diary` and `/run-sheet`: room-local dates, event times, guests and sessions. Generate branded run sheets with npm run docs.
+- `/room-clashes`: overlapping tentative and confirmed sessions, including setup and clearance. Adjacent bookings without buffer overlap are allowed.
+- `/enquiries` and `/attention`: contacts older than seven days, overdue tasks, deposits, final numbers and clashes.
+- `/deposits-due` and `/balances-due`: agreed booking amount, recorded receipts, deposit shortfall and full balance, kept in the event currency.
+- `/kitchen` and `/final-numbers`: menu quantities, dietary notes, confirmation status and allergen evidence for the kitchen handover.
+- `/staffing` and `/staff-clashes`: entered shifts and double-booked people.
+- `/margin-review`: agreed value less entered item costs, with a separate difference between item sales and agreed value. This is contribution before unentered labour, tax and overhead, not net profit.
+- `/customer-review` and `/conversion`: booking totals grouped by customer, status and currency, plus current pipeline counts.
+- `/compliance`: missing evidence against the sourced prompts in docs/compliance.md. A person reviews licence conditions and food safety arrangements.
+- `/weekly-review`: a Monday plan from attention, deposits, final numbers and compliance, checked against the diary.
 
-<!-- TODO(author): a table of the slash commands in .claude/commands and what each one does. -->
+Run npm run venue -- help for every route and allowed field. Reads print aligned text, or --json for machines. Relationships accept full IDs, ID prefixes and case-insensitive names. An ambiguous name lists candidates and exits 1. Add and update accept one JSON object quoted for your shell. Log records a contact and updates the event's last-contact time. Notes added with a historical timestamp do not change last-contact time automatically. Changes write audit history.
 
-| Command | What it does |
-|---|---|
-| `/...` | ... |
+## Booking and money rules
 
-## Instead of function-tracker
+Tentative sessions hold rooms. Overlaps are reported, not prohibited, so an operator can assess alternative holds. The base has no shared booking lock or customer portal. Capacity is the configured limit for a room, not a legal occupancy calculation. Each event's guest count applies to every session; split sessions with different capacities need an agreed extension.
 
-<!-- TODO(author): how to bring data across from Function Tracker; link docs/replace-function-tracker.md -->
+Booking amounts and receipts use integer cents in NZD or AUD. All entered amounts must use the same tax basis for a given event. Receipts are recorded evidence, not a bank feed or payment processor. All receipts reduce the deposit shortfall first and the full booking balance. Overpayments remain visible as negative balances. The program does not calculate tax, create legally formatted invoices or reconcile accounting ledgers. Confirm figures against the signed booking and accounting records.
 
-## Architecture
+Currency cannot change after an event has item or receipt records. Receipts are append-only through the CLI. Incorrect receipts require a reviewed migration that retains the original evidence. Parent relationships cannot be reassigned through update. No record deletion route is provided. Mark cancelled events and completed tasks explicitly.
 
-```
-venue-functions-for-claude-code/
-  CLAUDE.md                 how the operator wants this run (routing table + house rules)
-  AGENTS.md                 the same, for Codex / OpenCode / Cursor / Gemini CLI
-  .claude/commands/         the slash commands
-  scripts/                  the CLI the commands drive
-  scripts/lib/db.mjs        one adapter: DATABASE_URL (pg) or embedded PGlite
-  supabase/migrations/      plain SQL schema
-  supabase/seed.sql         demo data
-  docs/                     the thesis and the migration guide
-```
+Session times require ISO timestamps with explicit timezone offsets and render in the room's named timezone. Shift times retain explicit offsets in structured output and show UTC in text. Date-only deposit and final-number comparisons use the current UTC date. Confirm local cutoff policy before using it for same-day chasing. Dietary and licence fields are evidence prompts, not assurances of compliance.
 
-## Built for coding agents
+## Documents and read-only views
 
-The database, CLI and command recipes work with Claude Code, Codex, OpenCode or Cursor. Ask your coding agent for a new command and have it implement and test the change against the same records.
+npm run docs generates function run sheets, kitchen sheets and booking/deposit summaries. All are for review, not tax invoices. npm run view generates the function week, money and kitchen dashboards. Change business name, logo and colours in brand.json. Use /new-view to add a report. /draft-follow-up and /draft-function write internal drafts with source records; remove internal evidence before a person shares them. Nothing sends.
 
-## Contributing
+Read [why there is no front end](docs/why-no-front-end.md). A phone app, drag-and-drop calendar, online enquiry form and accounting connection can be scoped into a custom version.
 
-Issues and pull requests are welcome. Keep the shape: plain SQL, a small CLI, a slash command per recurring job, no front end.
+## Ten questions across your venue
 
-## Want it installed and run for you?
+Function Tracker documents its own reports. These are questions the free version answers today, not claims that the vendor cannot build a similar report.
 
-Enterprise DNA installs Venue Functions for Claude Code for your business, migrates your Function Tracker data, connects it to the rest of your tools, and runs it for you as part of **Omni**, our managed Command Center. One setup fee, then a monthly retainer.
+1. Which room holds overlap once setup and clearance are included? (`room-clashes`)
+2. Which deposits still have an unpaid amount? (`deposits-due`)
+3. Which enquiries have gone quiet for more than a week? (`attention`)
+4. Which events still need final headcounts or a dietary review? (`final-numbers`)
+5. Which menus need verified allergen information? (`compliance`)
+6. Who has overlapping function shifts? (`staff-clashes`)
+7. Which booking totals do not match their entered sales items? (`margin-review`)
+8. What contribution remains after the item costs we have entered? (`margin-review`)
+9. Which customers have outstanding booking balances, separated by currency? (`customer-review`)
+10. Which alcohol events lack the recorded host plan or licence review? (`compliance`)
 
-- Book a call: [enterprisedna.co/omni/book](https://enterprisedna.co/omni/book/?offer=replace-software&utm_source=github&utm_medium=readme&utm_campaign=function-tracker)
-- Read more: [enterprisedna.co/omni/instead-of/function-tracker](https://enterprisedna.co/omni/instead-of/function-tracker?utm_source=github&utm_medium=readme&utm_campaign=function-tracker)
+## Your first hour: ten things to ask for
 
-## License
+1. Put our name and logo on the run sheet.
+2. Add our function rooms and their configured capacities.
+3. Set each room's timezone and country.
+4. Map our actual Function Tracker export headings.
+5. Add our deposit and final-number dates.
+6. Record our standard setup and clearance times.
+7. Add our menu items and reviewed ingredient information.
+8. Record the current licence and host responsibility plan.
+9. Add our coordinators and the coming week's shifts.
+10. Make a report of bookings needing a commercial discussion.
 
-MIT. Copyright (c) 2026 Enterprise DNA.
+Use /customise to change fields or rules with a migration and tests. Keep existing workflows running until the revised version has been reconciled.
+
+## Bring your Function Tracker records
+
+The [replacement guide](docs/replace-function-tracker.md) explains the vendor's booking and customer Excel exports, conversion to CSV, explicit column mapping and a one-command import after mapping. Fixture headings are illustrative because the public documentation does not specify them. Unknown columns, invalid references and changed source rows stop the whole import. Preview rolls back. Exact repeats skip. Raw rows and mappings are preserved.
+
+Attachments, signed documents, mail histories, payment services and connections do not move automatically. Separately map supported data and retain original files. Export writes all ten business entities plus audit and import history as JSON and CSV. It is an interchange snapshot, not an automated restore.
+
+## Verification and operations
+
+npm test uses a disposable database, applies and repeats migrations and seed, exercises every CLI route, checks room buffers and staff overlap, checks deposit and contribution arithmetic, validates missing evidence, tests import preview and atomic rollback, and renders documents. It checks JSON output, ambiguity and process exit codes. CI covers Windows and Linux with PGlite and Linux with Postgres. A local Linux pass does not establish that hosted CI has run.
+
+One business per database. Before shared use configure least-privilege roles, access review and backups, and test recovery of the database plus documents. No tenant isolation is provided. Audit records can be altered by database administrators and are not tamper proof. Protect dietary details, exports and printed handovers under the venue's retention policy.
